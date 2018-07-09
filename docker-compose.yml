@@ -1,0 +1,22 @@
+version: '2'
+services:
+  neo4j:
+    image: neo4j:3.4.1
+    ports:
+      - "7474:7474"
+      - "7687:7687"
+    volumes:
+      - ./db/dbms:/data/dbms
+
+  kutt:
+    build:
+      context: ./kutt
+    volumes:
+      - ./kutt:/kutt
+    ports:
+      #- "80:3000"
+      - "3000:3000"
+    depends_on:
+      - neo4j
+    links:
+      - neo4j
