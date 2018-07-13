@@ -4,12 +4,24 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev": "next",
+    "start": "NODE_ENV=production node devServer.js",
+    "build": "next build",
+    "deploy": "serverless deploy"
   },
   "author": "serverless.com",
   "license": "MIT",
   "dependencies": {
-    "mysql": "^2.15.0",
-    "serverless-google-cloudfunctions": "^1.1.0"
+    "axios": "^0.18.0",
+    "bluebird": "^3.5.1",
+    "next": "^6.1.1",
+    "path-match": "^1.2.4",
+    "pg": "^7.4.3",
+    "pg-promise": "^8.4.5",
+    "react": "^16.4.1",
+    "react-dom": "^16.4.1",
+    "serverless-google-cloudfunctions": "^1.1.0",
+    "url": "^0.11.0"
   }
 }
