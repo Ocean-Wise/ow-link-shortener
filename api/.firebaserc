@@ -1,5 +1,6 @@
 {
   "projects": {
-    "default": "ocean-wise-186900"
+    "default": "ocean-wise-186900",
+    "shortener": "ocean-wise-186900"
   }
 }

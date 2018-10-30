@@ -1,28 +1,11 @@
 /*  eslint-disable import/no-unresolved,import/extensions */
 const url = require('url');
 const functions = require('firebase-functions');
+const admin = require('firebase-admin');
 
-// PostgreSQL
-const promise = require('bluebird');
+admin.initializeApp(functions.config().firebase);
 
-const options = {
-  // Use bluebird as the promise library
-  promiseLib: promise,
-};
-
-
-const pgp = require('pg-promise')(options);
-// Set the configuration options for Google Cloud SQL
-const cn = {
-  host: '/cloudsql/ocean-wise-186900:us-west1:url-shortener',
-  port: 5432,
-  database: 'shortener',
-  user: 'postgres',
-  password: 'OuaBGg9C1vK90pz2',
-};
-
-// Open database connection
-const db = pgp(cn);
+const db = admin.firestore();
 
 exports.doRedirect = functions.https.onRequest((req, res) => {
   res.header('Access-Control-Allow-Origin', '*');
@@ -32,9 +15,23 @@ exports.doRedirect = functions.https.onRequest((req, res) => {
     res.status(204).send('');
   }
   try {
-    db.any(`UPDATE redirects SET clicks = clicks + 1 WHERE short='${req.body.url}' RETURNING long`)
-      .then((results) => {
-        res.status(200).send(results[0].long);
+    db.collection('redirects')
+      .get()
+      .then(r => {
+        let long;
+        const size = r.size;
+        let i = 0;
+        r.forEach(redirect => {
+          const { long, short, clicks } = redirect.data();
+          if (short === req.body.url) {
+            db.collection('redirects').doc(redirect.id).update({ clicks: String(Number(clicks) + 1) });
+            res.status(200).send(long);
+          } else if (i === size - 1) {
+            res.status(200).send('https://ocean.org');
+          } else {
+            i += 1;
+          }
+        });
       });
   } catch (err) {
     res.status(200).send(err);
@@ -71,14 +68,23 @@ function validate(long) {
 function isPathFree(path) {
   return new Promise((res, rej) => { // eslint-disable-line
     try {
-      db.any(`SELECT ID FROM redirects WHERE short='${path}'`)
-        .then((result) => {
-          if (result.length > 0) {
+      db.collection('redirects').where("short", "==", path)
+        .get()
+        .then(r => {
+          if (r.size > 0) {
             return rej();
-          } else { // eslint-disable-line
+          } else {
             return res(true);
           }
         });
+      // db.any(`SELECT ID FROM redirects WHERE short='${path}'`)
+      //   .then((result) => {
+      //     if (result.length > 0) {
+      //       return rej();
+      //     } else { // eslint-disable-line
+      //       return res(true);
+      //     }
+      //   });
     } catch (err) {
       return res(true);
     }
@@ -136,12 +142,14 @@ exports.createRedirect = functions.https.onRequest((req, res) => {
       })
       .then((short) => {
         try {
-          db.none(`INSERT INTO redirects (long, short, clicks) VALUES ('${req.body.long}', '${short}', 0)`)
+          db.collection('redirects')
+            .doc(`${short}`)
+            .set({ long: req.body.long, short: short, clicks: 0 })
             .then(() => {
               res.status(200).send(`https://oceanwi.se/${short}`);
             });
         } catch (err) {
-          res.status(500).send('Error creating redirect');
+          res.status(500).send(err.stack);
         }
       });
     }
@@ -154,13 +162,13 @@ exports.removeRedirect = functions.https.onRequest((req, res) => {
   if (req.method === 'OPTIONS') {
     res.status(204).send('');
   }
-  if (req.body.id === undefined) res.status(400).send('Must include an id');
+  if (req.body.short === undefined) res.status(400).send('Must include the short url');
 
   try {
-    db.any(`DELETE FROM redirects WHERE id=${req.body.id}`)
-      .then(() => {
-        res.status(200).send('Successfully deleted redirect');
-      });
+    db.collection('redirects')
+      .doc(`${req.body.short}`)
+      .delete()
+      .then(() => res.status(200).send('Successfully deleted redirect'));
   } catch (err) {
     res.status(500).send('Error deleting redirect');
   }
@@ -174,9 +182,14 @@ exports.getAllRedirects = functions.https.onRequest((req, res) => {
     res.status(204).send('');
   }
   try {
-    db.any('SELECT * FROM redirects')
-      .then((results) => {
-        res.status(200).send(results);
+    db.collection('redirects')
+      .get()
+      .then(r => {
+        const redirects = []
+        r.forEach(redirect => {
+          redirects.push(redirect.data());
+        });
+        res.status(200).send(redirects);
       });
   } catch (err) {
     res.status(500).send('Error retrieving redirects');

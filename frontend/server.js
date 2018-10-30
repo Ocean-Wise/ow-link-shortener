@@ -43,12 +43,12 @@ app.prepare()
       const token = req.body.token
       firebase.auth().verifyIdToken(token)
         .then((decodedToken) => {
-          if (/@ocean.org/g.test(decodedToken.email)) {
+          if (/(Meighan\.Makarchuk|Ethan\.Dinnen)@ocean.org/gi.test(decodedToken.email)) {
             req.session.decodedToken = decodedToken
             res.json({ status: true, decodedToken })
           } else {
             req.session.decodedToken = null
-            return res.status(403).send({ error: 'Must be an @ocean.org email address. Please ensure you are logged out of other Google accounts before trying again.' })
+            return res.status(403).send({ error: 'Must be an verified @ocean.org email address. Please ensure you are logged out of other Google accounts before trying again.' })
           }
         })
         .catch((error) => res.json({ error }))
@@ -57,6 +57,10 @@ app.prepare()
     server.post('/api/logout', (req, res) => {
       req.session.decodedToken = null
       res.json({ status: true })
+    })
+
+    server.get('/admin', (req, res) => {
+      return handle(req, res)
     })
 
     server.get('/:redirect', (req, res) => {
@@ -79,7 +83,10 @@ app.prepare()
     })
 
     server.get('*', (req, res) => {
-      return handle(req, res)
+      res.writeHead(302, {
+        Location: 'https://ocean.org/',
+      })
+      res.end()
     })
 
     server.listen(port, (err) => {
